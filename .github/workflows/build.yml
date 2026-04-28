@@ -13,16 +13,17 @@ jobs:
       - name: Configure and Build
         run: |
           mkdir mybuild && cd mybuild
-          # כאן אנחנו מכריחים אותו להשתמש בדביאן העדכנית (Bookworm)
+          # הוספנו את הפקודה --security false כדי לעקוף את השגיאה
           sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --debian-installer none \
-            --memtest none
-          
-          # הרצת הבנייה
+            --memtest none \
+            --security false \
+            --updates false
+
           sudo lb build
 
       - name: Upload ISO
@@ -30,3 +31,4 @@ jobs:
         with:
           name: My-Custom-OS
           path: mybuild/*.iso
+
