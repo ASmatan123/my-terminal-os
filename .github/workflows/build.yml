@@ -1,0 +1,25 @@
+name: Build My OS
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Builder
+        run: sudo apt-get update && sudo apt-get install -y live-build
+
+      - name: Configure OS
+        run: |
+          mkdir build && cd build
+          lb config --architectures amd64 --binary-images iso-hybrid --memtest none
+
+      - name: Build ISO
+        run: |
+          cd build
+          sudo lb build
+
+      - name: Upload Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-os-iso
+          path: build/*.iso
