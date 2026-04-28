@@ -13,8 +13,20 @@ jobs:
       - name: Configure and Build
         run: |
           mkdir mybuild && cd mybuild
-          # הגדרה של דביאן יציבה (Bookworm) ללא ממשק גרפי
-          sudo lb config --architectures amd64 --binary-images iso-hybrid --debian-installer none --memtest none
+          # כאן אנחנו מכריחים אותו להשתמש בדביאן העדכנית (Bookworm)
+          sudo lb config \
+            --mode debian \
+            --distribution bookworm \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --debian-installer none \
+            --memtest none
+          
           # הרצת הבנייה
           sudo lb build
 
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: My-Custom-OS
+          path: mybuild/*.iso
