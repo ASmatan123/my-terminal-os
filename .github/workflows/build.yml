@@ -5,31 +5,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Builder Tools
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y live-build xorriso debootstrap
+          sudo apt-get install -y debootstrap xorriso mtools squashfs-tools grub-pc-bin grub-efi-amd64-bin
 
-      - name: Configure and Build
+      - name: Build Terminal OS
         run: |
-          mkdir mybuild && cd mybuild
+          mkdir -p workspace/chroot
+          # הורדת מערכת בסיסית (טרמינל בלבד)
+          sudo debootstrap --variant=minbase --arch=amd64 bookworm workspace/chroot http://debian.org
           
-          # הגדרה שמתקנת את שגיאת ה-404 של האבטחה
-          sudo lb config \
-            --mode debian \
-            --distribution bookworm \
-            --architectures amd64 \
-            --binary-images iso-hybrid \
-            --security false \
-            --updates false \
-            --mirror-binary "http://debian.org" \
-            --memtest none
+          # יצירת מבנה ה-ISO
+          mkdir -p workspace/image/live
+          sudo mksquashfs workspace/chroot workspace/image/live/filesystem.squashfs -comp xz
           
-          # בנייה בפועל
-          sudo lb build
+          # יצירת קובץ ה-ISO עצמו
+          # (אנחנו יוצרים ISO פשוט שמתאים לבוט בסיסי)
+          sudo xorriso -as mkisofs -o workspace/terminal-os.iso workspace/image/
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: My-Terminal-OS
-          path: mybuild/*.iso
+          name: Terminal-OS
+          path: workspace/terminal-os.iso
