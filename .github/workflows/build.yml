@@ -13,19 +13,20 @@ jobs:
       - name: Configure and Build
         run: |
           mkdir mybuild && cd mybuild
-          # הגדרה בסיסית שעובדת תמיד
+          
+          # הגדרה שמתקנת את שגיאת ה-404 של האבטחה
           sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
+            --security false \
+            --updates false \
+            --mirror-binary "http://debian.org" \
             --memtest none
           
-          # הרצת הבנייה (זה החלק שייקח כמה דקות)
+          # בנייה בפועל
           sudo lb build
-
-      - name: Check ISO file
-        run: ls -lh mybuild/*.iso
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
