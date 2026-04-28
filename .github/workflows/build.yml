@@ -5,7 +5,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Builder
+      - name: Install Builder Tools
         run: |
           sudo apt-get update
           sudo apt-get install -y live-build xorriso debootstrap
@@ -13,22 +13,22 @@ jobs:
       - name: Configure and Build
         run: |
           mkdir mybuild && cd mybuild
-          # הוספנו את הפקודה --security false כדי לעקוף את השגיאה
+          # הגדרה בסיסית שעובדת תמיד
           sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
-            --debian-installer none \
-            --memtest none \
-            --security false \
-            --updates false
-
+            --memtest none
+          
+          # הרצת הבנייה (זה החלק שייקח כמה דקות)
           sudo lb build
+
+      - name: Check ISO file
+        run: ls -lh mybuild/*.iso
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: My-Custom-OS
+          name: My-Terminal-OS
           path: mybuild/*.iso
-
