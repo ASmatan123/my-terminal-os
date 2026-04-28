@@ -6,20 +6,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Builder
-        run: sudo apt-get update && sudo apt-get install -y live-build
-
-      - name: Configure OS
         run: |
-          mkdir build && cd build
-          lb config --architectures amd64 --binary-images iso-hybrid --memtest none
+          sudo apt-get update
+          sudo apt-get install -y live-build xorriso debootstrap
 
-      - name: Build ISO
+      - name: Configure and Build
         run: |
-          cd build
+          mkdir mybuild && cd mybuild
+          # הגדרה של דביאן יציבה (Bookworm) ללא ממשק גרפי
+          sudo lb config --architectures amd64 --binary-images iso-hybrid --debian-installer none --memtest none
+          # הרצת הבנייה
           sudo lb build
 
-      - name: Upload Result
-        uses: actions/upload-artifact@v4
-        with:
-          name: my-os-iso
-          path: build/*.iso
