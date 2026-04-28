@@ -5,27 +5,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Install dependencies
+      - name: Build ISO using Docker
         run: |
-          sudo apt-get update
-          sudo apt-get install -y debootstrap xorriso mtools squashfs-tools grub-pc-bin grub-efi-amd64-bin
-
-      - name: Build Terminal OS
-        run: |
-          mkdir -p workspace/chroot
-          # הורדת מערכת בסיסית (טרמינל בלבד)
-          sudo debootstrap --variant=minbase --arch=amd64 bookworm workspace/chroot http://debian.org
-          
-          # יצירת מבנה ה-ISO
-          mkdir -p workspace/image/live
-          sudo mksquashfs workspace/chroot workspace/image/live/filesystem.squashfs -comp xz
-          
-          # יצירת קובץ ה-ISO עצמו
-          # (אנחנו יוצרים ISO פשוט שמתאים לבוט בסיסי)
-          sudo xorriso -as mkisofs -o workspace/terminal-os.iso workspace/image/
+          # אנחנו משתמשים ב"מפעל" מוכן שרץ בתוך דוקר
+          docker run --privileged --rm -v $(pwd):/dist debian:bookworm-slim bash -c "
+            apt-get update && apt-get install -y live-build;
+            mkdir /build && cd /build;
+            lb config --architectures amd64 --binary-images iso-hybrid --memtest none;
+            lb build;
+            cp *.iso /dist/my-os.iso"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: Terminal-OS
-          path: workspace/terminal-os.iso
+          name: Final-Terminal-OS
+          path: my-os.iso
