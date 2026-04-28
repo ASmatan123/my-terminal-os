@@ -1,4 +1,4 @@
-name: Build My OS
+name: Build My GUI OS
 on: workflow_dispatch
 
 jobs:
@@ -7,16 +7,30 @@ jobs:
     steps:
       - name: Build ISO using Docker
         run: |
-          # אנחנו משתמשים ב"מפעל" מוכן שרץ בתוך דוקר
           docker run --privileged --rm -v $(pwd):/dist debian:bookworm-slim bash -c "
             apt-get update && apt-get install -y live-build;
             mkdir /build && cd /build;
-            lb config --architectures amd64 --binary-images iso-hybrid --memtest none;
+            # הגדרה בסיסית וחסינה
+            lb config \
+              --mode debian \
+              --distribution bookworm \
+              --architectures amd64 \
+              --binary-images iso-hybrid \
+              --security false \
+              --updates false \
+              --memtest none;
+            
+            # הוספת הממשק הגרפי הכי קטן שיש (Openbox)
+            mkdir -p config/package-lists;
+            echo 'xorg openbox xterm' > config/package-lists/mygui.list.chroot;
+            
+            # בנייה
             lb build;
-            cp *.iso /dist/my-os.iso"
+            cp *.iso /dist/my-gui-os.iso"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: Final-Terminal-OS
-          path: my-os.iso
+          name: Tiny-GUI-OS
+          path: my-gui-os.iso
+
