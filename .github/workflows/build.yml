@@ -1,36 +1,55 @@
-name: Build My GUI OS
+name: Build Minimal Sky OS
 on: workflow_dispatch
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build ISO using Docker
         run: |
           docker run --privileged --rm -v $(pwd):/dist debian:bookworm-slim bash -c "
-            apt-get update && apt-get install -y live-build;
+            apt-get update && apt-get install -y live-build wget;
             mkdir /build && cd /build;
-            # הגדרה בסיסית וחסינה
+            
+            # הגדרות מינימליות - בלי אקסטרות, בנייה מהירה
             lb config \
               --mode debian \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
-              --security false \
-              --updates false \
+              --apt-indices false \
               --memtest none;
-            
-            # הוספת הממשק הגרפי הכי קטן שיש (Openbox)
+
+            # חבילות חיוניות בלבד: ממשק קליל, דפדפן ורקע
             mkdir -p config/package-lists;
-            echo 'xorg openbox xterm' > config/package-lists/mygui.list.chroot;
-            
+            echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot;
+
+            # הגדרת רקע שמיים (הורדה מהירה)
+            mkdir -p config/includes.chroot/usr/share/images/desktop/
+            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://githubusercontent.com
+
+            # הגדרת עלייה מהירה ישירות ל-Openbox
+            mkdir -p config/includes.chroot/etc/xdg/openbox/
+            cat <<EOF > config/includes.chroot/etc/xdg/openbox/autostart
+            feh --bg-fill /usr/share/images/desktop/sky.jpg &
+            firefox-esr &
+            EOF
+            chmod +x config/includes.chroot/etc/xdg/openbox/autostart
+
+            # ביטול מסכי פתיחה גרפיים ב-Boot (כדי לקבל מסך שחור עם טקסט/נקודות)
+            export LB_BOOTAPPEND_LIVE='boot=live components quiet nosplash'
+
             # בנייה
             lb build;
-            cp *.iso /dist/my-gui-os.iso"
+            cp *.iso /dist/my-minimal-os.iso"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: Tiny-GUI-OS
-          path: my-gui-os.iso
+          name: Minimal-Sky-OS
+          path: my-minimal-os.iso
+
 
