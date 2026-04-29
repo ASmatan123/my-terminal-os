@@ -1,11 +1,27 @@
-      - name: Build ISO using Docker
+name: Build Minimal Sky OS
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build ISO
         run: |
-          # יצירת תיקייה מקומית לקובץ הסופי
+          # יצירת תיקייה לקובץ הסופי
           mkdir -p output
-          docker run --privileged --rm -v $(pwd)/output:/dist debian:bookworm-slim bash -c "
-            apt-get update && apt-get install -y live-build wget --no-install-recommends;
-            mkdir -p /build && cd /build;
+          
+          # הרצת הדיסק בתוך הקונטיינר
+          docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
+            set -e  # יציאה במקרה של שגיאה
+            apt-get update
+            apt-get install -y live-build wget --no-install-recommends
             
+            mkdir -p /build && cd /build
+            
+            # הגדרות בסיסיות (הכי פשוט שיש)
             lb config \
               --mode debian \
               --distribution bookworm \
@@ -14,27 +30,30 @@
               --security false \
               --updates false;
 
-            mkdir -p config/package-lists;
-            echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot;
+            # רשימת חבילות
+            mkdir -p config/package-lists
+            echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot
 
-            # הורדת הרקע
+            # הגדרת רקע (חסין לשגיאות)
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://githubusercontent.com || true
 
-            # הגדרת Autostart
+            # הגדרת הפעלה אוטומטית
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'firefox-esr &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה
+            # בנייה (זה החלק שלוקח זמן)
             lb build
             
-            # העתקה לנתיב המשותף - מחפש כל קובץ iso שנוצר
-            cp *.iso /dist/my-minimal-os.iso"
+            # העברה לתיקייה שגיטהב רואה
+            cp *.iso /output/my-minimal-os.iso
+          "
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: Minimal-Sky-OS
           path: output/my-minimal-os.iso
+          if-no-files-found: error # זה יגרום לבנייה להיכשל אם אין קובץ, במקום להראות 'Success' שקרי
