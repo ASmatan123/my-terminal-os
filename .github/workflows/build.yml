@@ -1,55 +1,40 @@
-name: Build Minimal Sky OS
-on: workflow_dispatch
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Build ISO using Docker
         run: |
-          docker run --privileged --rm -v $(pwd):/dist debian:bookworm-slim bash -c "
-            apt-get update && apt-get install -y live-build wget;
-            mkdir /build && cd /build;
+          # יצירת תיקייה מקומית לקובץ הסופי
+          mkdir -p output
+          docker run --privileged --rm -v $(pwd)/output:/dist debian:bookworm-slim bash -c "
+            apt-get update && apt-get install -y live-build wget --no-install-recommends;
+            mkdir -p /build && cd /build;
             
-            # הגדרות מינימליות - בלי אקסטרות, בנייה מהירה
             lb config \
               --mode debian \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
-              --apt-indices false \
-              --memtest none;
+              --security false \
+              --updates false;
 
-            # חבילות חיוניות בלבד: ממשק קליל, דפדפן ורקע
             mkdir -p config/package-lists;
             echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot;
 
-            # הגדרת רקע שמיים (הורדה מהירה)
+            # הורדת הרקע
             mkdir -p config/includes.chroot/usr/share/images/desktop/
-            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://githubusercontent.com
+            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://githubusercontent.com || true
 
-            # הגדרת עלייה מהירה ישירות ל-Openbox
+            # הגדרת Autostart
             mkdir -p config/includes.chroot/etc/xdg/openbox/
-            cat <<EOF > config/includes.chroot/etc/xdg/openbox/autostart
-            feh --bg-fill /usr/share/images/desktop/sky.jpg &
-            firefox-esr &
-            EOF
+            echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
+            echo 'firefox-esr &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # ביטול מסכי פתיחה גרפיים ב-Boot (כדי לקבל מסך שחור עם טקסט/נקודות)
-            export LB_BOOTAPPEND_LIVE='boot=live components quiet nosplash'
-
             # בנייה
-            lb build;
+            lb build
+            
+            # העתקה לנתיב המשותף - מחפש כל קובץ iso שנוצר
             cp *.iso /dist/my-minimal-os.iso"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: Minimal-Sky-OS
-          path: my-minimal-os.iso
-
-
+          path: output/my-minimal-os.iso
