@@ -1,59 +1,57 @@
-name: Build Minimal Sky OS
-on: workflow_dispatch
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Build ISO
         run: |
-          # יצירת תיקייה לקובץ הסופי
           mkdir -p output
           
-          # הרצת הדיסק בתוך הקונטיינר
           docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
-            set -e  # יציאה במקרה של שגיאה
+            set -e
             apt-get update
             apt-get install -y live-build wget --no-install-recommends
             
             mkdir -p /build && cd /build
             
-            # הגדרות בסיסיות (הכי פשוט שיש)
+            # הגדרות לחיסכון במקום וביטול שאלות ב-Boot
             lb config \
               --mode debian \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
+              --apt-indices false \
+              --memtest none \
+              --bootappend-live 'boot=live components quiet splash locales=he_IL.UTF-8' \
               --security false \
               --updates false;
 
-            # רשימת חבילות
+            # רשימת חבילות מינימלית
             mkdir -p config/package-lists
             echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot
 
-            # הגדרת רקע (חסין לשגיאות)
+            # --- רקע לדסקטופ ---
             mkdir -p config/includes.chroot/usr/share/images/desktop/
-            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://githubusercontent.com || true
+            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://wikimedia.org || true
 
-            # הגדרת הפעלה אוטומטית
+            # --- הגדרת ה-Boot (דילוג על תפריטים ותמונה) ---
+            mkdir -p config/includes.binary/isolinux
+            # יצירת קובץ הגדרות שפשוט מריץ את ה-Live מיד
+            echo 'default live' > config/includes.binary/isolinux/isolinux.cfg
+            echo 'prompt 0' >> config/includes.binary/isolinux/isolinux.cfg
+            echo 'timeout 0' >> config/includes.binary/isolinux/isolinux.cfg
+            echo 'label live' >> config/includes.binary/isolinux/isolinux.cfg
+            echo '  kernel /live/vmlinuz' >> config/includes.binary/isolinux/isolinux.cfg
+            echo '  append initrd=/live/initrd.img boot=live components quiet splash' >> config/includes.binary/isolinux/isolinux.cfg
+
+            # --- הוספת תמונת כובע ל-Boot (אופציונלי כ-Splash) ---
+            # הערה: בשביל "sky" פשוט בטקסט, הוספנו 'quiet splash' ב-bootappend למעלה.
+            # אם יש לך לינק לתמונת הכובע, אפשר לשים אותה כאן:
+            mkdir -p config/includes.chroot/usr/share/plymouth/themes/text/
+            echo 'title=Sky OS' > config/includes.chroot/usr/share/plymouth/themes/text/text.plymouth
+
+            # --- הפעלה אוטומטית ---
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'firefox-esr &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה (זה החלק שלוקח זמן)
+            # בנייה
             lb build
-            
-            # העברה לתיקייה שגיטהב רואה
             cp *.iso /output/my-minimal-os.iso
           "
-
-      - name: Upload ISO
-        uses: actions/upload-artifact@v4
-        with:
-          name: Minimal-Sky-OS
-          path: output/my-minimal-os.iso
-          if-no-files-found: error # זה יגרום לבנייה להיכשל אם אין קובץ, במקום להראות 'Success' שקרי
