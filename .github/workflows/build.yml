@@ -19,10 +19,10 @@ jobs:
             
             mkdir -p /build && cd /build
             
-            # הגדרות שם המערכת וחיסכון במקום
+            # תיקון השגיאה: החלפת --project ב- --iso-volume
             lb config \
               --mode debian \
-              --project 'Sky OS' \
+              --iso-volume 'Sky OS' \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
@@ -32,15 +32,15 @@ jobs:
               --security false \
               --updates false;
 
-            # חבילות (הוספתי ניקוי בסוף לחסכון ב-MB)
+            # חבילות: החלפנו את firefox-esr ב-badwolf (דפדפן קל מאוד)
             mkdir -p config/package-lists
-            echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot
+            echo 'xorg openbox feh badwolf' > config/package-lists/mygui.list.chroot
 
             # --- רקע דסקטופ ---
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://wikimedia.org || true
 
-            # --- דילוג על תפריט BOOT ---
+            # --- BOOT מהיר (בלי תפריטים) ---
             mkdir -p config/includes.binary/isolinux
             echo 'default live' > config/includes.binary/isolinux/isolinux.cfg
             echo 'prompt 0' >> config/includes.binary/isolinux/isolinux.cfg
@@ -52,19 +52,17 @@ jobs:
             # --- הפעלה אוטומטית ---
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
-            echo 'firefox-esr &' >> config/includes.chroot/etc/xdg/openbox/autostart
+            echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה וניקוי
+            # בנייה
             lb build
-            
-            # שינוי שם הקובץ הסופי ל-Sky-OS
             cp *.iso /output/Sky-OS.iso
           "
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: Sky-OS-Artifact
+          name: Sky-OS
           path: output/Sky-OS.iso
           if-no-files-found: error
