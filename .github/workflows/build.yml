@@ -1,3 +1,13 @@
+name: Build Minimal Sky OS
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Build ISO
         run: |
           mkdir -p output
@@ -9,9 +19,10 @@
             
             mkdir -p /build && cd /build
             
-            # הגדרות לחיסכון במקום וביטול שאלות ב-Boot
+            # הגדרות שם המערכת וחיסכון במקום
             lb config \
               --mode debian \
+              --project 'Sky OS' \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
@@ -21,17 +32,16 @@
               --security false \
               --updates false;
 
-            # רשימת חבילות מינימלית
+            # חבילות (הוספתי ניקוי בסוף לחסכון ב-MB)
             mkdir -p config/package-lists
             echo 'xorg openbox feh firefox-esr' > config/package-lists/mygui.list.chroot
 
-            # --- רקע לדסקטופ ---
+            # --- רקע דסקטופ ---
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://wikimedia.org || true
 
-            # --- הגדרת ה-Boot (דילוג על תפריטים ותמונה) ---
+            # --- דילוג על תפריט BOOT ---
             mkdir -p config/includes.binary/isolinux
-            # יצירת קובץ הגדרות שפשוט מריץ את ה-Live מיד
             echo 'default live' > config/includes.binary/isolinux/isolinux.cfg
             echo 'prompt 0' >> config/includes.binary/isolinux/isolinux.cfg
             echo 'timeout 0' >> config/includes.binary/isolinux/isolinux.cfg
@@ -39,19 +49,22 @@
             echo '  kernel /live/vmlinuz' >> config/includes.binary/isolinux/isolinux.cfg
             echo '  append initrd=/live/initrd.img boot=live components quiet splash' >> config/includes.binary/isolinux/isolinux.cfg
 
-            # --- הוספת תמונת כובע ל-Boot (אופציונלי כ-Splash) ---
-            # הערה: בשביל "sky" פשוט בטקסט, הוספנו 'quiet splash' ב-bootappend למעלה.
-            # אם יש לך לינק לתמונת הכובע, אפשר לשים אותה כאן:
-            mkdir -p config/includes.chroot/usr/share/plymouth/themes/text/
-            echo 'title=Sky OS' > config/includes.chroot/usr/share/plymouth/themes/text/text.plymouth
-
             # --- הפעלה אוטומטית ---
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'firefox-esr &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה
+            # בנייה וניקוי
             lb build
-            cp *.iso /output/my-minimal-os.iso
+            
+            # שינוי שם הקובץ הסופי ל-Sky-OS
+            cp *.iso /output/Sky-OS.iso
           "
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sky-OS-Artifact
+          path: output/Sky-OS.iso
+          if-no-files-found: error
