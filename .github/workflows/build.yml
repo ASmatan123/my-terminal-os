@@ -18,26 +18,21 @@ jobs:
             
             mkdir -p /build && cd /build
             
-            # פתרון לשגיאה 123: שם פשוט ללא תווים מיוחדים או רווחים
+            # פתרון לשגיאה 123: הורדת כל הקישוטים מהקונפיג
             lb config \
-              --mode debian \
-              --iso-volume 'SkyOS' \
-              --distribution bookworm \
-              --architectures amd64 \
-              --binary-images iso-hybrid \
               --apt-indices false \
               --memtest none \
               --bootappend-live 'boot=live components quiet splash';
 
-            # חבילות (קלות ומהירות)
+            # חבילות (מינימליסטי כמו שביקשת)
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/my.list.chroot
 
-            # הגדרת הרקע מהקישור שלך
+            # הגדרת הרקע
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
 
-            # הפעלה אוטומטית
+            # הפעלה אוטומטית של הדסקטופ
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
@@ -46,7 +41,7 @@ jobs:
             # בנייה
             lb build
             
-            # העתקה בטוחה של ה-ISO לתיקייה שרואים מבחוץ
+            # העתקה של הקובץ שנוצר לתיקיית ה-output
             cp *.iso /output/Sky-OS.iso
           "
 
@@ -55,4 +50,3 @@ jobs:
         with:
           name: Sky-OS
           path: output/Sky-OS.iso
-          if-no-files-found: error
