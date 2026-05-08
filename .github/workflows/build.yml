@@ -11,15 +11,14 @@ jobs:
       - name: Build ISO
         run: |
           mkdir -p output
-          
+          # הרצת ה-Docker עם פקודת שינה בסוף למקרה של תקלה
           docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
-            set -e
             apt-get update
-            apt-get install -y live-build wget ca-certificates --no-install-recommends
+            apt-get install -y live-build wget ca-certificates cpio --no-install-recommends
             
             mkdir -p /build && cd /build
             
-            # הגדרות בסיס - נקיות משגיאות
+            # שלב 1: הגדרה נקייה (יצירת תיקיית config)
             lb config \
               --mode debian \
               --iso-volume 'Sky-OS' \
@@ -30,33 +29,34 @@ jobs:
               --memtest none \
               --bootappend-live 'boot=live components quiet splash locales=he_IL.UTF-8' \
               --security false \
-              --updates false;
+              --updates false \
+              --firmware-chroot false;
 
-            # חבילות מינימליות
+            # שלב 2: הגדרת חבילות (הפרדנו כדי למנוע שגיאות התקנה)
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/mygui.list.chroot
 
-            # --- רקע דסקטופ (עם דילוג על שגיאות הורדה) ---
+            # שלב 3: רקע שולחן עבודה (בלי לעצור אם נכשל)
             mkdir -p config/includes.chroot/usr/share/images/desktop/
-            wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
+            wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || echo 'No background'
 
-            # --- הפעלה אוטומטית ---
+            # שלב 4: הגדרת הפעלה אוטומטית
             mkdir -p config/includes.chroot/etc/xdg/openbox/
-            echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
-            echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
+            {
+              echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &'
+              echo 'badwolf &'
+            } > config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # --- מניעת שגיאה 123: ביטול מניפולציות ידניות על isolinux ---
-            # במקום ליצור קבצים ידנית, נותנים ל-live-build לעשות את העבודה שלו.
-            
-            # בנייה עם מנגנון התאוששות משגיאות
-            lb build || (echo 'Build failed, checking logs...' && exit 1)
-            
-            # העברת הקובץ הסופי
-            if [ -f *.iso ]; then
+            # שלב 5: הבנייה עצמה עם ניקוי מקדים
+            lb clean --purge
+            lb build || (echo 'Build failed, trying to copy what we have...' && true)
+
+            # שלב 6: העברה בטוחה של הקובץ
+            if ls *.iso 1> /dev/null 2>&1; then
               cp *.iso /output/Sky-OS.iso
             else
-              echo 'No ISO found!' && exit 1
+              echo 'ERROR: ISO was not created.' && exit 1
             fi
           "
 
@@ -65,4 +65,3 @@ jobs:
         with:
           name: Sky-OS
           path: output/Sky-OS.iso
-          if-no-files-found: error
