@@ -15,17 +15,14 @@ jobs:
           docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
             set -e
             apt-get update
-            # התקנת חבילות בסיס הכרחיות לבנייה
             apt-get install -y live-build wget ca-certificates --no-install-recommends
             
             mkdir -p /build && cd /build
             
-            # ניקוי הגדרות קודמות למניעת שגיאות קונפיגורציה
-            lb clean --purge || true
-            
+            # הגדרות בסיס - נקיות משגיאות
             lb config \
               --mode debian \
-              --iso-volume 'Sky OS' \
+              --iso-volume 'Sky-OS' \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
@@ -33,27 +30,15 @@ jobs:
               --memtest none \
               --bootappend-live 'boot=live components quiet splash locales=he_IL.UTF-8' \
               --security false \
-              --updates false \
-              --firmware-chroot false \
-              --firmware-binary false;
+              --updates false;
 
-            # חבילות מינימליות (ללא דרייברים כבדים)
+            # חבילות מינימליות
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/mygui.list.chroot
 
-            # --- הורדת רקע (עם הגנה משגיאות SSL) ---
+            # --- רקע דסקטופ (עם דילוג על שגיאות הורדה) ---
             mkdir -p config/includes.chroot/usr/share/images/desktop/
-            # השימוש ב- --no-check-certificate מונע את exit code 5 במקרה של בעיית אבטחה
-            wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || echo 'Download failed, using black background'
-
-            # --- BOOT מהיר ---
-            mkdir -p config/includes.binary/isolinux
-            echo 'default live' > config/includes.binary/isolinux/isolinux.cfg
-            echo 'prompt 0' >> config/includes.binary/isolinux/isolinux.cfg
-            echo 'timeout 0' >> config/includes.binary/isolinux/isolinux.cfg
-            echo 'label live' >> config/includes.binary/isolinux/isolinux.cfg
-            echo '  kernel /live/vmlinuz' >> config/includes.binary/isolinux/isolinux.cfg
-            echo '  append initrd=/live/initrd.img boot=live components quiet splash' >> config/includes.binary/isolinux/isolinux.cfg
+            wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
 
             # --- הפעלה אוטומטית ---
             mkdir -p config/includes.chroot/etc/xdg/openbox/
@@ -61,9 +46,18 @@ jobs:
             echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה
-            lb build
-            cp *.iso /output/Sky-OS.iso
+            # --- מניעת שגיאה 123: ביטול מניפולציות ידניות על isolinux ---
+            # במקום ליצור קבצים ידנית, נותנים ל-live-build לעשות את העבודה שלו.
+            
+            # בנייה עם מנגנון התאוששות משגיאות
+            lb build || (echo 'Build failed, checking logs...' && exit 1)
+            
+            # העברת הקובץ הסופי
+            if [ -f *.iso ]; then
+              cp *.iso /output/Sky-OS.iso
+            else
+              echo 'No ISO found!' && exit 1
+            fi
           "
 
       - name: Upload ISO
@@ -71,3 +65,4 @@ jobs:
         with:
           name: Sky-OS
           path: output/Sky-OS.iso
+          if-no-files-found: error
