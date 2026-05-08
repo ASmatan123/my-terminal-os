@@ -19,7 +19,7 @@ jobs:
             
             mkdir -p /build && cd /build
             
-            # תיקון השגיאה: החלפת --project ב- --iso-volume
+            # הגדרות בסיס - הסרת רכיבים כבדים
             lb config \
               --mode debian \
               --iso-volume 'Sky OS' \
@@ -30,17 +30,20 @@ jobs:
               --memtest none \
               --bootappend-live 'boot=live components quiet splash locales=he_IL.UTF-8' \
               --security false \
-              --updates false;
+              --updates false \
+              --firmware-chroot false \
+              --firmware-binary false;
 
-            # חבילות: החלפנו את firefox-esr ב-badwolf (דפדפן קל מאוד)
+            # רשימת חבילות מינימלית - ללא דרייברים מיותרים
             mkdir -p config/package-lists
-            echo 'xorg openbox feh badwolf' > config/package-lists/mygui.list.chroot
+            # הוספנו xserver-xorg-video-all רק לגרפיקה בסיסית, ללא bluetooth/printing
+            echo 'xorg openbox feh badwolf ca-certificates libasound2' > config/package-lists/mygui.list.chroot
 
-            # --- רקע דסקטופ ---
+            # --- הגדרת רקע שולחן עבודה מהקישור שלך ---
             mkdir -p config/includes.chroot/usr/share/images/desktop/
-            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg https://wikimedia.org || true
+            wget -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://images.theconversation.com/files/641031/original/file-20250107-17-tr2ko0.jpg?ixlib=rb-4.1.0&q=45&auto=format&w=1000&fit=clip'
 
-            # --- BOOT מהיר (בלי תפריטים) ---
+            # --- הגדרות BOOT מהיר ---
             mkdir -p config/includes.binary/isolinux
             echo 'default live' > config/includes.binary/isolinux/isolinux.cfg
             echo 'prompt 0' >> config/includes.binary/isolinux/isolinux.cfg
@@ -49,13 +52,13 @@ jobs:
             echo '  kernel /live/vmlinuz' >> config/includes.binary/isolinux/isolinux.cfg
             echo '  append initrd=/live/initrd.img boot=live components quiet splash' >> config/includes.binary/isolinux/isolinux.cfg
 
-            # --- הפעלה אוטומטית ---
+            # --- הגדרת הפעלה אוטומטית (Openbox) ---
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # בנייה
+            # הרצת הבנייה
             lb build
             cp *.iso /output/Sky-OS.iso
           "
