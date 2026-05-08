@@ -16,23 +16,24 @@ jobs:
             apt-get update
             apt-get install -y live-build wget ca-certificates --no-install-recommends
             
+            # יצירת תיקייה והתחלה מחדש
             mkdir -p /build && cd /build
             
-            # פתרון לשגיאה 123: הורדת כל הקישוטים מהקונפיג
-            lb config \
-              --apt-indices false \
-              --memtest none \
-              --bootappend-live 'boot=live components quiet splash';
-
-            # חבילות (מינימליסטי כמו שביקשת)
+            # פתרון סופי ל-123: פקודת config מינימלית ללא הגדרות חיצוניות
+            lb config --apt-indices false --memtest none
+            
+            # הזרקת פרמטרים ישירות לקובץ הקונפיג במקום דרך הפקודה (עוקף את שגיאה 123)
+            echo 'lb config --bootappend-live \"boot=live components quiet splash\"' >> config/common
+            
+            # הוספת חבילות
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/my.list.chroot
 
-            # הגדרת הרקע
+            # הגדרת הרקע מהקישור שלך
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
 
-            # הפעלה אוטומטית של הדסקטופ
+            # הפעלה אוטומטית
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
@@ -41,7 +42,7 @@ jobs:
             # בנייה
             lb build
             
-            # העתקה של הקובץ שנוצר לתיקיית ה-output
+            # העתקה בטוחה
             cp *.iso /output/Sky-OS.iso
           "
 
