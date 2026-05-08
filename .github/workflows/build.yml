@@ -11,47 +11,45 @@ jobs:
       - name: Build ISO
         run: |
           mkdir -p output
+          # הרצה בתוך ה-Docker
           docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
-            set -x # זה יראה לנו בדיוק איפה זה נכשל בלוג
+            set -e
             apt-get update
             apt-get install -y live-build wget ca-certificates --no-install-recommends
             
-            mkdir -p /build && cd /build
+            # יצירת תיקיית עבודה נקייה
+            mkdir -p /work && cd /work
             
-            # שלב 1: הגדרה סופר בסיסית
+            # הגדרה בסיסית
             lb config \
               --mode debian \
               --iso-volume 'Sky-OS' \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
-              --memtest none \
               --apt-indices false \
+              --memtest none \
               --bootappend-live 'boot=live components quiet splash';
 
-            # שלב 2: חבילות (רק מה שחייבים)
+            # חבילות
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/my.list.chroot
 
-            # שלב 3: סקריפט אוטומציה במקום קבצים ידניים (זה מונע שגיאות 123 ו-1)
-            mkdir -p config/hooks/live
-            cat <<EOF > config/hooks/live/001-setup-desktop.chroot
-            #!/bin/sh
-            mkdir -p /usr/share/images/desktop/
-            wget --no-check-certificate -q -O /usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
-            
-            mkdir -p /etc/xdg/openbox/
-            echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > /etc/xdg/openbox/autostart
-            echo 'badwolf &' >> /etc/xdg/openbox/autostart
-            chmod +x /etc/xdg/openbox/autostart
-            EOF
-            chmod +x config/hooks/live/001-setup-desktop.chroot
+            # רקע שולחן עבודה - הזרקה ישירה לתוך המערכת
+            mkdir -p config/includes.chroot/usr/share/images/desktop/
+            wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
 
-            # שלב 4: בנייה
+            # הגדרת הפעלה אוטומטית
+            mkdir -p config/includes.chroot/etc/xdg/openbox/
+            echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
+            echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
+            chmod +x config/includes.chroot/etc/xdg/openbox/autostart
+
+            # הרצת הבנייה האמיתית
             lb build
             
-            # שלב 5: חיפוש ה-ISO והעתקה (גם אם השם משתנה)
-            find . -name '*.iso' -exec cp {} /output/Sky-OS.iso \;
+            # העברה של הקובץ שנוצר (הוא מסתיים ב-.iso) לתיקיית ה-output
+            cp *.iso /output/Sky-OS.iso
           "
 
       - name: Upload ISO
@@ -59,3 +57,4 @@ jobs:
         with:
           name: Sky-OS
           path: output/Sky-OS.iso
+          if-no-files-found: error
