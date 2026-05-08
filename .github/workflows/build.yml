@@ -11,19 +11,17 @@ jobs:
       - name: Build ISO
         run: |
           mkdir -p output
-          # הרצה בתוך ה-Docker
           docker run --privileged --rm -v $(pwd)/output:/output debian:bookworm-slim bash -c "
             set -e
             apt-get update
             apt-get install -y live-build wget ca-certificates --no-install-recommends
             
-            # יצירת תיקיית עבודה נקייה
-            mkdir -p /work && cd /work
+            mkdir -p /build && cd /build
             
-            # הגדרה בסיסית
+            # פתרון לשגיאה 123: שם פשוט ללא תווים מיוחדים או רווחים
             lb config \
               --mode debian \
-              --iso-volume 'Sky-OS' \
+              --iso-volume 'SkyOS' \
               --distribution bookworm \
               --architectures amd64 \
               --binary-images iso-hybrid \
@@ -31,24 +29,24 @@ jobs:
               --memtest none \
               --bootappend-live 'boot=live components quiet splash';
 
-            # חבילות
+            # חבילות (קלות ומהירות)
             mkdir -p config/package-lists
             echo 'xorg openbox feh badwolf ca-certificates' > config/package-lists/my.list.chroot
 
-            # רקע שולחן עבודה - הזרקה ישירה לתוך המערכת
+            # הגדרת הרקע מהקישור שלך
             mkdir -p config/includes.chroot/usr/share/images/desktop/
             wget --no-check-certificate -q -O config/includes.chroot/usr/share/images/desktop/sky.jpg 'https://theconversation.com' || true
 
-            # הגדרת הפעלה אוטומטית
+            # הפעלה אוטומטית
             mkdir -p config/includes.chroot/etc/xdg/openbox/
             echo 'feh --bg-fill /usr/share/images/desktop/sky.jpg &' > config/includes.chroot/etc/xdg/openbox/autostart
             echo 'badwolf &' >> config/includes.chroot/etc/xdg/openbox/autostart
             chmod +x config/includes.chroot/etc/xdg/openbox/autostart
 
-            # הרצת הבנייה האמיתית
+            # בנייה
             lb build
             
-            # העברה של הקובץ שנוצר (הוא מסתיים ב-.iso) לתיקיית ה-output
+            # העתקה בטוחה של ה-ISO לתיקייה שרואים מבחוץ
             cp *.iso /output/Sky-OS.iso
           "
 
